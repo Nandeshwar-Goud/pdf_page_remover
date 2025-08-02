@@ -16,6 +16,7 @@ const notificationText = document.getElementById('notificationText');
 const progressContainer = document.getElementById('progressContainer');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
+const errorContainer = document.getElementById('errorContainer');
 
 // PDF variables
 let pdfDoc = null;
@@ -35,14 +36,40 @@ function showNotification(message, isError = false) {
     }, 3000);
 }
 
+// Show error message
+function showError(message) {
+    errorContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${message}</div>`;
+    setTimeout(() => {
+        errorContainer.innerHTML = '';
+    }, 5000);
+}
+
 // Update progress bar
 function updateProgress(percent, message) {
     progressBar.style.width = `${percent}%`;
     progressText.textContent = message;
 }
 
+// Check if required libraries are loaded
+function checkLibraries() {
+    if (typeof pdfjsLib === 'undefined') {
+        showError('PDF.js library failed to load. Please refresh the page.');
+        return false;
+    }
+
+    if (typeof PDFLib === 'undefined') {
+        showError('PDF-lib library failed to load. Please refresh the page.');
+        return false;
+    }
+
+    return true;
+}
+
 // Upload area events
-uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('click', () => {
+    if (!checkLibraries()) return;
+    fileInput.click();
+});
 
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -70,8 +97,20 @@ fileInput.addEventListener('change', (e) => {
 
 // Handle file upload
 async function handleFile(file) {
+    // Clear previous errors
+    errorContainer.innerHTML = '';
+
+    // Check if libraries are loaded
+    if (!checkLibraries()) return;
+
     if (file.type !== 'application/pdf') {
-        showNotification('Please select a PDF file', true);
+        showError('Please select a PDF file');
+        return;
+    }
+
+    // Check file size (limit to 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+        showError('File size exceeds 50MB limit. Please choose a smaller file.');
         return;
     }
 
@@ -83,92 +122,113 @@ async function handleFile(file) {
     emptyState.classList.add('hidden');
     loadingIndicator.classList.remove('hidden');
 
-    const fileReader = new FileReader();
+    try {
+        // Read file as ArrayBuffer
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        originalPdfBytes = new Uint8Array(arrayBuffer);
 
-    fileReader.onload = async function () {
-        const typedarray = new Uint8Array(this.result);
-        originalPdfBytes = typedarray;
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument(originalPdfBytes);
+        pdfDoc = await loadingTask.promise;
 
-        try {
-            // Load PDF document
-            const loadingTask = pdfjsLib.getDocument(typedarray);
-            pdfDoc = await loadingTask.promise;
+        // Initialize remaining pages
+        remainingPages = Array.from({ length: pdfDoc.numPages }, (_, i) => i + 1);
 
-            // Initialize remaining pages
-            remainingPages = Array.from({ length: pdfDoc.numPages }, (_, i) => i + 1);
+        // Update page count
+        pageCount.textContent = `Total Pages: ${pdfDoc.numPages}`;
 
-            // Update page count
-            pageCount.textContent = `Total Pages: ${pdfDoc.numPages}`;
+        // Render all pages
+        await renderAllPages();
 
-            // Render all pages
-            await renderAllPages();
+        // Show PDF container and action buttons
+        loadingIndicator.classList.add('hidden');
+        pdfContainer.classList.remove('hidden');
+        pdfInfo.classList.remove('hidden');
+        topActions.classList.remove('hidden');
 
-            // Show PDF container and action buttons
-            loadingIndicator.classList.add('hidden');
-            pdfContainer.classList.remove('hidden');
-            pdfInfo.classList.remove('hidden');
-            topActions.classList.remove('hidden');
+        showNotification('PDF loaded successfully');
+    } catch (error) {
+        console.error('Error loading PDF:', error);
+        showError('Error loading PDF. Please try again or choose a different file.');
+        resetApp();
+    }
+}
 
-            showNotification('PDF loaded successfully');
-        } catch (error) {
-            console.error('Error loading PDF:', error);
-            showNotification('Error loading PDF. Please try again.', true);
-            resetApp();
-        }
-    };
+// Read file as ArrayBuffer with error handling
+function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
 
-    fileReader.readAsArrayBuffer(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => {
+            showError('Error reading file. Please try again.');
+            reject(new Error('FileReader error'));
+        };
+
+        reader.onabort = () => {
+            showError('File reading was aborted.');
+            reject(new Error('FileReader aborted'));
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
 }
 
 // Render all PDF pages
 async function renderAllPages() {
     pdfContainer.innerHTML = '';
 
-    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        const page = await pdfDoc.getPage(pageNum);
+    try {
+        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            const page = await pdfDoc.getPage(pageNum);
 
-        // Create canvas
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
 
-        // Create page wrapper
-        const pageWrapper = document.createElement('div');
-        pageWrapper.className = 'page-wrapper';
-        pageWrapper.dataset.pageNum = pageNum;
+            // Create page wrapper
+            const pageWrapper = document.createElement('div');
+            pageWrapper.className = 'page-wrapper';
+            pageWrapper.dataset.pageNum = pageNum;
 
-        // Calculate scale to fit container
-        const containerWidth = 180; // Minimum width from grid
-        const viewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / viewport.width;
-        const scaledViewport = page.getViewport({ scale });
+            // Calculate scale to fit container
+            const containerWidth = 180; // Minimum width from grid
+            const viewport = page.getViewport({ scale: 1 });
+            const scale = containerWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale });
 
-        // Set canvas dimensions
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
+            // Set canvas dimensions
+            canvas.width = scaledViewport.width;
+            canvas.height = scaledViewport.height;
 
-        // Create delete button
-        const deleteBtn = document.createElement('div');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-        deleteBtn.addEventListener('click', () => removePage(pageNum, pageWrapper));
+            // Create delete button
+            const deleteBtn = document.createElement('div');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+            deleteBtn.addEventListener('click', () => removePage(pageNum, pageWrapper));
 
-        // Create page number indicator
-        const pageNumber = document.createElement('div');
-        pageNumber.className = 'page-number';
-        pageNumber.textContent = pageNum;
+            // Create page number indicator
+            const pageNumber = document.createElement('div');
+            pageNumber.className = 'page-number';
+            pageNumber.textContent = pageNum;
 
-        // Append elements
-        pageWrapper.appendChild(deleteBtn);
-        pageWrapper.appendChild(canvas);
-        pageWrapper.appendChild(pageNumber);
-        pdfContainer.appendChild(pageWrapper);
+            // Append elements
+            pageWrapper.appendChild(deleteBtn);
+            pageWrapper.appendChild(canvas);
+            pageWrapper.appendChild(pageNumber);
+            pdfContainer.appendChild(pageWrapper);
 
-        // Render PDF page
-        const renderContext = {
-            canvasContext: context,
-            viewport: scaledViewport
-        };
-        await page.render(renderContext).promise;
+            // Render PDF page
+            const renderContext = {
+                canvasContext: context,
+                viewport: scaledViewport
+            };
+            await page.render(renderContext).promise;
+        }
+    } catch (error) {
+        console.error('Error rendering pages:', error);
+        showError('Error rendering PDF pages. Please try again.');
+        throw error;
     }
 }
 
@@ -212,6 +272,7 @@ function resetApp() {
     pdfDoc = null;
     remainingPages = [];
     originalPdfBytes = null;
+    errorContainer.innerHTML = '';
 }
 
 // Reset button event
@@ -220,7 +281,7 @@ resetBtn.addEventListener('click', resetApp);
 // Download modified PDF
 downloadBtn.addEventListener('click', async () => {
     if (!originalPdfBytes || remainingPages.length === 0) {
-        showNotification('No pages to download', true);
+        showError('No pages to download');
         return;
     }
 
@@ -260,10 +321,29 @@ downloadBtn.addEventListener('click', async () => {
         const a = document.createElement('a');
         a.href = url;
         a.download = pdfFileName;
+        a.style.display = 'none';
         document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        // Trigger download
+        try {
+            a.click();
+            showNotification('PDF downloaded successfully');
+        } catch (err) {
+            // Fallback for browsers that don't support programmatic clicks
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            a.dispatchEvent(clickEvent);
+            showNotification('PDF downloaded successfully');
+        }
+
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
 
         updateProgress(100, 'Download complete!');
 
@@ -271,12 +351,11 @@ downloadBtn.addEventListener('click', async () => {
         setTimeout(() => {
             progressContainer.classList.add('hidden');
             topActions.classList.remove('hidden');
-            showNotification('PDF downloaded successfully');
         }, 1500);
 
     } catch (error) {
         console.error('Error preparing PDF:', error);
-        showNotification('Error preparing PDF. Please try again.', true);
+        showError('Error preparing PDF. Please try again.');
         progressContainer.classList.add('hidden');
         topActions.classList.remove('hidden');
     }
@@ -284,3 +363,8 @@ downloadBtn.addEventListener('click', async () => {
 
 // Initialize empty state
 emptyState.classList.remove('hidden');
+
+// Check if we're in a secure context (HTTPS or localhost)
+if (!window.isSecureContext) {
+    showError('This application works best on HTTPS. Some features may not work correctly.');
+}

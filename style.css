@@ -2,7 +2,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        sans-serif;
 }
 
 body {
@@ -72,7 +73,7 @@ h1 {
 }
 
 .btn::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -124,13 +125,15 @@ h1 {
 }
 
 .upload-area::before {
-    content: '';
+    content: "";
     position: absolute;
     top: -50%;
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle,
+            rgba(102, 126, 234, 0.1) 0%,
+            transparent 70%);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -385,20 +388,23 @@ h1 {
     font-weight: 600;
 }
 
-.bottom-actions {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-top: 40px;
+.error-message {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 12px;
+    margin: 20px 0;
+    text-align: center;
+    font-weight: 500;
+    box-shadow: 0 10px 25px -5px rgba(245, 87, 108, 0.4);
 }
 
-/* Glow effect for buttons */
 .btn-glow {
     position: relative;
 }
 
 .btn-glow::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;

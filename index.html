@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <title>PDF PAGE REMOVER</title>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>PDF Page Remover</h1>
+        <p class="subtitle">
+          Effortlessly remove unwanted pages from your PDF documents
+        </p>
+
+        <div class="top-actions hidden" id="topActions">
+          <button class="btn btn-primary btn-glow" id="resetBtn">
+            <i class="fas fa-redo"></i> Start Over
+          </button>
+          <button class="btn btn-success btn-glow" id="downloadBtn">
+            <i class="fas fa-download"></i> Download PDF
+          </button>
+        </div>
+      </header>
+
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">
+          <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <div class="upload-text">Drag & Drop your PDF here</div>
+        <div class="upload-subtext">or click to browse files</div>
+        <input type="file" id="fileInput" accept=".pdf" />
+      </div>
+
+      <div class="pdf-container hidden" id="pdfContainer">
+        <!-- PDF pages will be rendered here -->
+      </div>
+
+      <div class="pdf-info hidden" id="pdfInfo">
+        <div class="page-count" id="pageCount">Total Pages: 0</div>
+      </div>
+
+      <div class="empty-state hidden" id="emptyState">
+        <div class="empty-icon">
+          <i class="far fa-file-pdf"></i>
+        </div>
+        <div class="empty-title">No PDF loaded</div>
+        <div class="empty-text">Upload a PDF file to start removing pages</div>
+      </div>
+
+      <div class="loading hidden" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p>Processing your PDF...</p>
+      </div>
+
+      <div class="progress-container hidden" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+        <div class="progress-text" id="progressText">Preparing your PDF...</div>
+      </div>
+    </div>
+
+    <div class="notification" id="notification">
+      <i class="fas fa-check-circle"></i>
+      <span id="notificationText">Page removed successfully</span>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
